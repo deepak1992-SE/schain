@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>sChain Validation Tool</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        textarea, input { width: 100%; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #results { margin-top: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .logs { margin-top: 20px; padding: 10px; background: #f4f4f4; border: 1px solid #ddd; }
+        .log-success { color: green; }
+        .log-error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>sChain Validation Tool</h1>
+    <form id="validationForm">
+        <div class="form-group">
+            <label for="schain">sChain Input (JSON):</label>
+            <textarea id="schain" name="schain" rows="5"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="ads_txt_url">app-ads.txt URL:</label>
+            <input type="text" id="ads_txt_url" name="ads_txt_url" placeholder="https://example.com/app-ads.txt">
+        </div>
+        <div class="form-group">
+            <label for="pubmatic_id">PubMatic ID:</label>
+            <input type="text" id="pubmatic_id" name="pubmatic_id" placeholder="123456">
+        </div>
+        <div class="form-group">
+            <label for="pubmatic_json_url">PubMatic sellers.json URL:</label>
+            <input type="text" id="pubmatic_json_url" name="pubmatic_json_url" placeholder="https://cdn.pubmatic.com/sellers.json">
+        </div>
+        <button type="submit">Validate</button>
+    </form>
+
+    <div id="results"></div>
+    <div id="logs" class="logs"></div>
+    <button id="downloadBtn" style="margin-top: 20px;">Download CSV</button>
+
+    <script>
+        $(document).ready(function () {
+            $("#validationForm").submit(function (e) {
+                e.preventDefault();
+                $("#results, #logs").empty();
+
+                $.post("/validate", $(this).serialize(), function (response) {
+                    if (response.status === "Failed") {
+                        $("#results").html(`<p class="error">Validation Failed!</p>`);
+                    } else {
+                        $("#results").html(`<p class="success">Validation Successful!</p>`);
+                    }
+
+                    if (response.logs) {
+                        let logHtml = "<h3>Logs:</h3><ul>";
+                        response.logs.forEach(log => {
+                            let logClass = log.status === "error" ? "log-error" : "log-success";
+                            logHtml += `<li class="${logClass}">${log.message}</li>`;
+                        });
+                        logHtml += "</ul>";
+                        $("#logs").html(logHtml);
+                    }
+
+                    if (response.table) {
+                        let tableHtml = "<h3>Validation Summary:</h3><table border='1' cellpadding='5' cellspacing='0'><thead><tr>";
+                        tableHtml += "<th>ASI (Domain)</th><th>SID</th><th>Seller Name</th><th>Seller Domain</th><th>Ads.txt Status</th><th>Sellers.json Status</th>";
+                        tableHtml += "</tr></thead><tbody>";
+
+                        response.table.forEach(row => {
+                            tableHtml += "<tr>";
+                            tableHtml += `<td>${row.asi}</td>`;
+                            tableHtml += `<td>${row.sid}</td>`;
+                            tableHtml += `<td>${row.name}</td>`;
+                            tableHtml += `<td>${row.domain}</td>`;
+                            tableHtml += `<td>${row.ads_txt}</td>`;
+                            tableHtml += `<td>${row.sellers_json}</td>`;
+                            tableHtml += "</tr>";
+                        });
+
+                        tableHtml += "</tbody></table>";
+                        $("#logs").append(tableHtml);
+                    }
+                });
+            });
+
+            $("#downloadBtn").click(function () {
+                window.location.href = "/download";
+            });
+        });
+    </script>
+</body>
+</html>
