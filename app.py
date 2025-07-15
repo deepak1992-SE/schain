@@ -1,3 +1,4 @@
+import os
 import csv
 import json
 import re
@@ -26,7 +27,12 @@ def validate_sellers_json(asi, sid, logs):
         url = f"https://{asi}/sellers.json"
         logs.append({"message": f"Validating sellers.json for ASI={asi}, SID={sid}...", "status": "success"})
         response = requests.get(url, timeout=5)
-        data = response.json()
+
+        try:
+            data = response.json()
+        except json.JSONDecodeError as e:
+            logs.append({"message": f"Failed to parse JSON from sellers.json for ASI {asi}: {e}", "status": "error"})
+            return "", "", "Failed"
 
         for seller in data.get('sellers', []):
             if str(seller.get("seller_id")) == str(sid):
@@ -37,6 +43,7 @@ def validate_sellers_json(asi, sid, logs):
 
         logs.append({"message": f"Failed: SID {sid} not found in sellers.json for ASI {asi}.", "status": "error"})
         return "", "", "Failed"
+
     except Exception as e:
         logs.append({"message": f"Error: Could not fetch sellers.json for ASI {asi}: {e}", "status": "error"})
         return "", "", "Failed"
@@ -105,7 +112,6 @@ def validate():
 def download_csv():
     global validation_results
 
-    # Use StringIO to build CSV as text
     text_stream = StringIO()
     writer = csv.writer(text_stream)
     writer.writerow([
@@ -123,7 +129,6 @@ def download_csv():
             row.get('sellers_json', '')
         ])
 
-    # Convert to BytesIO for send_file
     byte_stream = BytesIO()
     byte_stream.write(text_stream.getvalue().encode('utf-8'))
     byte_stream.seek(0)
@@ -135,9 +140,6 @@ def download_csv():
         as_attachment=True
     )
 
-import os
-
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # 5000 for local; dynamic on Render
-    app.run(host='0.0.0.0', port=port, debug=True)
-
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
